@@ -1,5 +1,4 @@
 import aiosqlite
-from config import DB_PATH
 
 
 async def init(db: aiosqlite.Connection):
@@ -55,10 +54,10 @@ async def search_files(db: aiosqlite.Connection,
     if author_id:
         query += " AND author_id=?"
         params.append(author_id)
-    if after:
+    if after is not None:
         query += " AND timestamp>=?"
         params.append(after)
-    if before:
+    if before is not None:
         query += " AND timestamp<=?"
         params.append(before)
     count_query = query.replace(

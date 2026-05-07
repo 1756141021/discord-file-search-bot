@@ -40,6 +40,7 @@ class SearchView(discord.ui.View):
         self.total = total
         self.page = page
         self.total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.message: discord.Message | None = None
         self._update_buttons()
 
     def _update_buttons(self):
@@ -69,6 +70,8 @@ class SearchView(discord.ui.View):
     async def on_timeout(self):
         for item in self.children:
             item.disabled = True
+        if self.message:
+            await self.message.edit(view=self)
 
 
 class Search(commands.Cog):
@@ -76,6 +79,7 @@ class Search(commands.Cog):
         self.bot = bot
         self.db = database
 
+    @app_commands.guild_only()
     @app_commands.command(name="search", description="按文件扩展名搜索附件")
     @app_commands.describe(
         ext="文件扩展名，如 pdf、zip、mp4（不需要加点）",
@@ -129,7 +133,8 @@ class Search(commands.Cog):
             str(from_user.id) if from_user else None,
             after_ts, before_ts, total,
         )
-        await interaction.followup.send(embed=embed, view=view)
+        msg = await interaction.followup.send(embed=embed, view=view)
+        view.message = msg
 
 
 def _parse_date(date_str: str, end_of_day: bool = False) -> int | None:

@@ -26,6 +26,7 @@ class Indexer(commands.Cog):
                 timestamp=int(message.created_at.timestamp()),
             )
 
+    @app_commands.guild_only()
     @app_commands.command(name="index", description="[管理员] 爬取频道历史消息建立文件索引")
     @app_commands.describe(channel="要索引的频道，不填则索引所有频道")
     @app_commands.default_permissions(administrator=True)
