@@ -7,7 +7,11 @@ Search Discord server attachments by file extension.
 
 ## 功能 / Features
 
-- `/search ext:pdf` — 搜索所有 PDF 文件 / Search all PDF files
+`ext` 参数支持**任意文件后缀**，不限类型。`pdf` 只是示例，`zip`、`psd`、`mp3`、`exe`、`docx` 等所有后缀都能搜。  
+The `ext` parameter accepts **any file extension** — `pdf` is just an example. Works with `zip`, `psd`, `mp3`, `exe`, `docx`, or anything else.
+
+- `/search ext:pdf` — 搜索所有 PDF / Search all PDFs
+- `/search ext:psd` — 搜索所有 PSD 文件 / Search all PSDs
 - `/search ext:zip channel:#资源 from_user:@某人` — 组合过滤 / Combined filters
 - `/search ext:mp4 after:2025-01-01 before:2025-12-31` — 按时间范围 / Date range filter
 - `/index` — 管理员命令，爬取频道历史建立索引 / Admin command to index channel history
