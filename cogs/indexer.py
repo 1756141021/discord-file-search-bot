@@ -61,7 +61,7 @@ class Indexer(commands.Cog):
                         )
                         if added:
                             count += 1
-            except discord.Forbidden:
+            except (discord.Forbidden, discord.HTTPException):
                 pass
             total_new += count
 

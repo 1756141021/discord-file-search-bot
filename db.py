@@ -12,7 +12,8 @@ async def init(db: aiosqlite.Connection):
             filename   TEXT NOT NULL,
             extension  TEXT NOT NULL,
             url        TEXT NOT NULL,
-            timestamp  INTEGER NOT NULL
+            timestamp  INTEGER NOT NULL,
+            UNIQUE(message_id, filename)
         )
     """)
     await db.execute("CREATE INDEX IF NOT EXISTS idx_guild_ext ON files(guild_id, extension)")
@@ -24,18 +25,33 @@ async def insert_file(db: aiosqlite.Connection,
                       guild_id: str, channel_id: str, message_id: str,
                       author_id: str, filename: str, url: str, timestamp: int):
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    async with db.execute(
-        "SELECT 1 FROM files WHERE message_id=? AND filename=?", (message_id, filename)
-    ) as cur:
-        if await cur.fetchone():
-            return False
-    await db.execute(
-        "INSERT INTO files(guild_id,channel_id,message_id,author_id,filename,extension,url,timestamp) "
+    cursor = await db.execute(
+        "INSERT OR IGNORE INTO files(guild_id,channel_id,message_id,author_id,filename,extension,url,timestamp) "
         "VALUES (?,?,?,?,?,?,?,?)",
         (guild_id, channel_id, message_id, author_id, filename, ext, url, timestamp),
     )
     await db.commit()
-    return True
+    return cursor.rowcount > 0
+
+
+def _build_where(guild_id: str, extension: str,
+                 channel_id: str | None, author_id: str | None,
+                 after: int | None, before: int | None):
+    clause = "WHERE guild_id=? AND extension=?"
+    params: list = [guild_id, extension.lower().lstrip(".")]
+    if channel_id:
+        clause += " AND channel_id=?"
+        params.append(channel_id)
+    if author_id:
+        clause += " AND author_id=?"
+        params.append(author_id)
+    if after is not None:
+        clause += " AND timestamp>=?"
+        params.append(after)
+    if before is not None:
+        clause += " AND timestamp<=?"
+        params.append(before)
+    return clause, params
 
 
 async def search_files(db: aiosqlite.Connection,
@@ -46,27 +62,13 @@ async def search_files(db: aiosqlite.Connection,
                        before: int | None = None,
                        limit: int = 10,
                        offset: int = 0):
-    query = "SELECT filename, url, channel_id, author_id, timestamp FROM files WHERE guild_id=? AND extension=?"
-    params: list = [guild_id, extension.lower().lstrip(".")]
-    if channel_id:
-        query += " AND channel_id=?"
-        params.append(channel_id)
-    if author_id:
-        query += " AND author_id=?"
-        params.append(author_id)
-    if after is not None:
-        query += " AND timestamp>=?"
-        params.append(after)
-    if before is not None:
-        query += " AND timestamp<=?"
-        params.append(before)
-    count_query = query.replace(
-        "SELECT filename, url, channel_id, author_id, timestamp", "SELECT COUNT(*)"
-    )
-    async with db.execute(count_query, params) as cur:
+    clause, params = _build_where(guild_id, extension, channel_id, author_id, after, before)
+    async with db.execute(f"SELECT COUNT(*) FROM files {clause}", params) as cur:
         total = (await cur.fetchone())[0]
-    query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-    params += [limit, offset]
-    async with db.execute(query, params) as cur:
+    async with db.execute(
+        f"SELECT filename, url, channel_id, author_id, timestamp FROM files {clause} "
+        f"ORDER BY timestamp DESC LIMIT ? OFFSET ?",
+        params + [limit, offset],
+    ) as cur:
         rows = await cur.fetchall()
     return total, rows

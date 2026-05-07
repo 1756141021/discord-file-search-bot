@@ -48,8 +48,7 @@ class SearchView(discord.ui.View):
         self.next_btn.disabled = self.page >= self.total_pages
 
     async def _goto(self, interaction: discord.Interaction, page: int):
-        self.page = page
-        self.total_pages = max(1, (self.total + PAGE_SIZE - 1) // PAGE_SIZE)
+        self.page = max(1, min(page, self.total_pages))
         self._update_buttons()
         _, rows = await db.search_files(
             self.db, self.guild_id, self.ext,
