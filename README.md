@@ -7,8 +7,8 @@ Search Discord server attachments by file extension, uploader, date range, and c
 
 ## 功能 / Features
 
-- `/search` 支持按 **发布用户 / 时间 / 频道 / 扩展名** 组合搜索。扩展名可填可不填，填的话支持 `pdf` 和 `.pdf` 两种写法。  
-  `/search` supports filtering by **uploader / date / channel / extension**. The extension is optional, and both `pdf` and `.pdf` are accepted.
+- `/search` 支持按 **发布用户 / 时间 / 频道 / 扩展名 / 文件名子串** 组合搜索。所有参数都可选，扩展名 `pdf` 和 `.pdf` 两种写法都行；文件名子串大小写不敏感、支持中文。  
+  `/search` supports filtering by **uploader / date / channel / extension / filename substring**. All parameters are optional. Extension accepts both `pdf` and `.pdf`. Filename substring is case-insensitive and works with non-ASCII characters.
 - 搜索结果默认 **仅自己可见**。  
   Search results are **ephemeral by default**.
 - 如果本地索引里暂时没有命中，Bot 会优先用 Discord 附件搜索补索引，再查一次；如果附件搜索不可用，才退回扫描历史消息。  
@@ -19,6 +19,7 @@ Search Discord server attachments by file extension, uploader, date range, and c
 ### 示例 / Examples
 
 - `/search ext:.safetensors` — 搜索 `.safetensors` 文件 / Search `.safetensors` files
+- `/search filename:__v4_shuffle.html` — 搜索文件名包含 `__v4_shuffle.html` 的文件 / Search files whose name contains `__v4_shuffle.html`
 - `/search from_user:@某人` — 搜索某人发过的所有附件 / Search all attachments posted by a user
 - `/search from_user:@某人 after:2025-1-1 before:2025-12-31` — 按用户和时间范围搜索；`5` 和 `05` 都能用 / Search by user and date range; both `5` and `05` work
 - `/search channel:#资源 ext:zip` — 限定频道搜索 ZIP / Search ZIP files in a specific channel

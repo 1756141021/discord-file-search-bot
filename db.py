@@ -25,6 +25,10 @@ def normalize_extension(value: str) -> str:
     return value.strip().lower().lstrip(".")
 
 
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 async def insert_file(db: aiosqlite.Connection,
                       guild_id: str, channel_id: str, message_id: str,
                       author_id: str, filename: str, url: str, timestamp: int):
@@ -40,7 +44,8 @@ async def insert_file(db: aiosqlite.Connection,
 
 def _build_where(guild_id: str, extension: str | None,
                  channel_id: str | None, author_id: str | None,
-                 after: int | None, before: int | None):
+                 after: int | None, before: int | None,
+                 filename: str | None = None):
     clause = "WHERE guild_id=?"
     params: list[str | int] = [guild_id]
     if extension is not None:
@@ -58,6 +63,9 @@ def _build_where(guild_id: str, extension: str | None,
     if before is not None:
         clause += " AND timestamp<=?"
         params.append(before)
+    if filename:
+        clause += " AND filename LIKE ? ESCAPE '\\'"
+        params.append(f"%{_escape_like(filename)}%")
     return clause, params
 
 
@@ -67,9 +75,10 @@ async def search_files(db: aiosqlite.Connection,
                        author_id: str | None = None,
                        after: int | None = None,
                        before: int | None = None,
+                       filename: str | None = None,
                        limit: int = 10,
                        offset: int = 0):
-    clause, params = _build_where(guild_id, extension, channel_id, author_id, after, before)
+    clause, params = _build_where(guild_id, extension, channel_id, author_id, after, before, filename)
     async with db.execute(f"SELECT COUNT(*) FROM files {clause}", params) as cur:
         total = (await cur.fetchone())[0]
     async with db.execute(

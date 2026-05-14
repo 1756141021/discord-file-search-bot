@@ -21,6 +21,7 @@ def _build_embed(
     rows,
     guild_id: str,
     ext: str | None,
+    filename: str | None,
     page: int,
     total_pages: int,
     visible_total: int,
@@ -35,6 +36,8 @@ def _build_embed(
 ):
     title_ext = f".{ext}" if ext else "全部条件"
     description = [f"共找到 **{actual_total}** 个文件  |  第 {page}/{total_pages} 页"]
+    if filename:
+        description.append(f"文件名包含：`{filename}`")
     if actual_total > effective_limit:
         description.append(f"当前只展示最新 **{visible_total}** 条结果。")
     if auto_indexed:
@@ -149,6 +152,7 @@ class SearchView(discord.ui.View):
         author_id: str | None,
         after: int | None,
         before: int | None,
+        filename: str | None,
         visible_total: int,
         actual_total: int,
         effective_limit: int,
@@ -171,6 +175,7 @@ class SearchView(discord.ui.View):
         self.author_id = author_id
         self.after = after
         self.before = before
+        self.filename = filename
         self.visible_total = visible_total
         self.actual_total = actual_total
         self.effective_limit = effective_limit
@@ -217,12 +222,13 @@ class SearchView(discord.ui.View):
             return
         _, rows = await db.search_files(
             self.db,
-            self.guild_id,
-            self.ext,
-            self.channel_id,
-            self.author_id,
-            self.after,
-            self.before,
+            guild_id=self.guild_id,
+            extension=self.ext,
+            channel_id=self.channel_id,
+            author_id=self.author_id,
+            after=self.after,
+            before=self.before,
+            filename=self.filename,
             limit=page_limit,
             offset=(self.page - 1) * PAGE_SIZE,
         )
@@ -231,6 +237,7 @@ class SearchView(discord.ui.View):
             rows,
             self.guild_id,
             self.ext,
+            self.filename,
             self.page,
             self.total_pages,
             self.visible_total,
@@ -269,13 +276,14 @@ class Search(commands.Cog):
         self.db = database
 
     @app_commands.guild_only()
-    @app_commands.command(name="search", description="按用户、时间、频道或扩展名搜索附件")
+    @app_commands.command(name="search", description="按用户、时间、频道、扩展名或文件名搜索附件")
     @app_commands.describe(
         from_user="限定上传者（可选）",
         after="起始日期，如 2026-5-1 或 2026-05-01（可选）",
         before="截止日期，如 2026-5-31 或 2026-05-31（可选）",
         channel="限定频道（可选）",
         ext="文件扩展名，如 safetensors、.pdf、zip（可选）",
+        filename="文件名包含的子串，大小写不敏感，如 __v4_shuffle.html（可选）",
         scan_limit=f"自动补索引时每个频道最多扫描多少条消息，默认 {DEFAULT_SCAN_LIMIT}",
         result_limit=f"最多返回多少条最新结果，默认 {DEFAULT_RESULT_LIMIT}",
         context_limit=f"查看上下文时前后各取多少条消息，默认 {DEFAULT_CONTEXT_LIMIT}",
@@ -288,6 +296,7 @@ class Search(commands.Cog):
         before: str | None = None,
         channel: discord.TextChannel | None = None,
         ext: str | None = None,
+        filename: str | None = None,
         scan_limit: app_commands.Range[int, 1, 50000] | None = None,
         result_limit: app_commands.Range[int, 1, 1000] | None = None,
         context_limit: app_commands.Range[int, 1, MAX_CONTEXT_LIMIT] | None = None,
@@ -302,6 +311,9 @@ class Search(commands.Cog):
             if not normalized_ext:
                 await interaction.followup.send("扩展名不能为空；要么留空，要么填合法后缀。", ephemeral=True)
                 return
+        normalized_filename = filename.strip() if filename else None
+        if not normalized_filename:
+            normalized_filename = None
 
         if after_ts is None and after:
             await interaction.followup.send("after 日期格式错误，请用 2026-5-1 或 2026-05-01 这种写法。", ephemeral=True)
@@ -309,7 +321,7 @@ class Search(commands.Cog):
         if before_ts is None and before:
             await interaction.followup.send("before 日期格式错误，请用 2026-5-31 或 2026-05-31 这种写法。", ephemeral=True)
             return
-        if not any([from_user, after_ts is not None, before_ts is not None, channel, normalized_ext]):
+        if not any([from_user, after_ts is not None, before_ts is not None, channel, normalized_ext, normalized_filename]):
             await interaction.followup.send("至少填 1 个筛选条件。", ephemeral=True)
             return
 
@@ -325,6 +337,7 @@ class Search(commands.Cog):
             author_id=str(from_user.id) if from_user else None,
             after=after_ts,
             before=before_ts,
+            filename=normalized_filename,
             limit=min(PAGE_SIZE, effective_result_limit),
             offset=0,
         )
@@ -368,6 +381,7 @@ class Search(commands.Cog):
                 author_id=str(from_user.id) if from_user else None,
                 after=after_ts,
                 before=before_ts,
+                filename=normalized_filename,
                 limit=min(PAGE_SIZE, effective_result_limit),
                 offset=0,
             )
@@ -397,6 +411,7 @@ class Search(commands.Cog):
             rows,
             str(interaction.guild.id),
             normalized_ext,
+            normalized_filename,
             1,
             total_pages,
             effective_total,
@@ -423,6 +438,7 @@ class Search(commands.Cog):
             str(from_user.id) if from_user else None,
             after_ts,
             before_ts,
+            normalized_filename,
             effective_total,
             total,
             effective_result_limit,
