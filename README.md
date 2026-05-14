@@ -127,6 +127,54 @@ Or for a specific channel:
 
 ---
 
+## 用 Docker 部署 / Run with Docker
+
+需要先装好 Docker 和 Docker Compose。  
+Requires Docker and Docker Compose.
+
+**1. 准备 / Prepare**
+
+```bash
+git clone https://github.com/1756141021/discord-file-search-bot.git
+cd discord-file-search-bot
+cp .env.example .env
+# 编辑 .env 填入 DISCORD_TOKEN
+# Edit .env and fill in DISCORD_TOKEN
+```
+
+**2. 启动 / Start**
+
+```bash
+docker compose up -d --build
+```
+
+**3. 查看日志 / View logs**
+
+```bash
+docker compose logs -f
+```
+
+看到 `Bot 已上线：...` 和 `斜杠命令已同步。` 就成功了。  
+Look for `Bot 已上线：...` and `斜杠命令已同步。` to confirm it's running.
+
+**4. 停止 / 升级 / 备份 — Stop / Upgrade / Backup**
+
+```bash
+# 停止 / stop
+docker compose down
+
+# 升级到最新代码 / upgrade
+git pull && docker compose up -d --build
+
+# 备份数据库 / back up the database
+cp data/files.db data/files.db.bak
+```
+
+数据库挂载在主机的 `./data/files.db`，删容器、重建镜像都不会丢。  
+The SQLite DB lives at `./data/files.db` on the host — it survives container removal and image rebuilds.
+
+---
+
 ## 注意 / Notes
 
 - Discord 附件 URL 有有效期，文件被删除后链接会失效。  
