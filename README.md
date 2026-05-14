@@ -1,20 +1,29 @@
 # Discord 文件搜索 Bot / Discord File Search Bot
 
-按文件扩展名搜索 Discord 服务器里的历史附件。  
-Search Discord server attachments by file extension.
+按文件扩展名、发布用户、时间范围、频道搜索 Discord 服务器里的历史附件。  
+Search Discord server attachments by file extension, uploader, date range, and channel.
 
 ---
 
 ## 功能 / Features
 
-`ext` 参数支持**任意文件后缀**，不限类型。`pdf` 只是示例，`zip`、`psd`、`mp3`、`exe`、`docx` 等所有后缀都能搜。  
-The `ext` parameter accepts **any file extension** — `pdf` is just an example. Works with `zip`, `psd`, `mp3`, `exe`, `docx`, or anything else.
+- `/search` 支持按 **发布用户 / 时间 / 频道 / 扩展名** 组合搜索。扩展名可填可不填，填的话支持 `pdf` 和 `.pdf` 两种写法。  
+  `/search` supports filtering by **uploader / date / channel / extension**. The extension is optional, and both `pdf` and `.pdf` are accepted.
+- 搜索结果默认 **仅自己可见**。  
+  Search results are **ephemeral by default**.
+- 如果本地索引里暂时没有命中，Bot 会优先用 Discord 附件搜索补索引，再查一次；如果附件搜索不可用，才退回扫描历史消息。  
+  If nothing is found in the local index, the bot first backfills through Discord attachment search and searches again; if attachment search is unavailable, it falls back to scanning message history.
+- 自动补索引默认最多处理 5000 条含附件消息；搜索结果默认最多展示最新 200 条；上下文默认显示目标消息前后各 5 条，都可以在 `/search` 里手动改。  
+  Auto-indexing processes up to 5000 messages with attachments by default, search results are capped to the newest 200 by default, and context shows 5 messages before and after the target by default; all can be overridden in `/search`.
 
-- `/search ext:pdf` — 搜索所有 PDF / Search all PDFs
-- `/search ext:psd` — 搜索所有 PSD 文件 / Search all PSDs
-- `/search ext:zip channel:#资源 from_user:@某人` — 组合过滤 / Combined filters
-- `/search ext:mp4 after:2025-01-01 before:2025-12-31` — 按时间范围 / Date range filter
-- `/index` — 管理员命令，爬取频道历史建立索引 / Admin command to index channel history
+### 示例 / Examples
+
+- `/search ext:.safetensors` — 搜索 `.safetensors` 文件 / Search `.safetensors` files
+- `/search from_user:@某人` — 搜索某人发过的所有附件 / Search all attachments posted by a user
+- `/search from_user:@某人 after:2025-1-1 before:2025-12-31` — 按用户和时间范围搜索；`5` 和 `05` 都能用 / Search by user and date range; both `5` and `05` work
+- `/search channel:#资源 ext:zip` — 限定频道搜索 ZIP / Search ZIP files in a specific channel
+- `/search ext:mp4 scan_limit:10000 result_limit:300 context_limit:8` — 自定义扫描、结果和上下文上限 / Override scan, result, and context limits
+- `/index` — 管理员命令，手动全量回填历史索引 / Admin command to backfill history manually
 
 ---
 
@@ -26,7 +35,7 @@ The `ext` parameter accepts **any file extension** — `pdf` is just an example.
 - New Application → Bot → Reset Token → 复制 Token
 - Bot 页面开启 **Message Content Intent**
 - OAuth2 → URL Generator：勾选 `bot` + `applications.commands`
-- Bot Permissions 勾选：`Read Messages/View Channels`、`Read Message History`
+- Bot Permissions 勾选：`Read Messages/View Channels`、`Read Message History`、`Send Messages`、`Embed Links`
 - 复制生成的邀请链接，邀请 Bot 进服务器
 
 **2. 安装依赖**
@@ -50,17 +59,19 @@ python bot.py
 
 Bot 上线后斜杠命令会自动同步（可能需要等几分钟才在 Discord 里出现）。
 
-**5. 建立历史索引**
+**5. 搜索与索引**
 
-Bot 只会自动索引它启动后的新消息。若要索引历史文件，在 Discord 里用管理员账号输入：
+- Bot 启动后会自动索引它上线后的新消息。
+- 旧消息里的附件，`/search` 在没命中时会优先用 Discord 附件搜索补索引；如果不可用，才退回扫描历史消息。
+- 如果你想手动全量回填，也可以在 Discord 里用管理员账号输入：
 
-```
+```text
 /index
 ```
 
 或指定频道：
 
-```
+```text
 /index channel:#资源频道
 ```
 
@@ -74,7 +85,7 @@ Go to [Discord Developer Portal](https://discord.com/developers/applications):
 - New Application → Bot → Reset Token → copy the token
 - On the Bot page, enable **Message Content Intent**
 - OAuth2 → URL Generator: check `bot` + `applications.commands`
-- Bot Permissions: check `Read Messages/View Channels` and `Read Message History`
+- Bot Permissions: check `Read Messages/View Channels`, `Read Message History`, `Send Messages`, and `Embed Links`
 - Copy the generated invite URL and invite the bot to your server
 
 **2. Install dependencies**
@@ -98,17 +109,19 @@ python bot.py
 
 Slash commands sync automatically on startup (may take a few minutes to appear in Discord).
 
-**5. Index existing files**
+**5. Search and indexing**
 
-The bot only indexes new messages after it starts. To index historical files, run as an admin in Discord:
+- The bot automatically indexes new messages after it starts.
+- For older attachments, `/search` first backfills through Discord attachment search when the local index has no hit; if unavailable, it falls back to scanning history.
+- You can still backfill manually as an admin:
 
-```
+```text
 /index
 ```
 
 Or for a specific channel:
 
-```
+```text
 /index channel:#your-channel
 ```
 

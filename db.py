@@ -21,10 +21,14 @@ async def init(db: aiosqlite.Connection):
     await db.commit()
 
 
+def normalize_extension(value: str) -> str:
+    return value.strip().lower().lstrip(".")
+
+
 async def insert_file(db: aiosqlite.Connection,
                       guild_id: str, channel_id: str, message_id: str,
                       author_id: str, filename: str, url: str, timestamp: int):
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    ext = normalize_extension(filename.rsplit(".", 1)[-1]) if "." in filename else ""
     cursor = await db.execute(
         "INSERT OR IGNORE INTO files(guild_id,channel_id,message_id,author_id,filename,extension,url,timestamp) "
         "VALUES (?,?,?,?,?,?,?,?)",
@@ -34,11 +38,14 @@ async def insert_file(db: aiosqlite.Connection,
     return cursor.rowcount > 0
 
 
-def _build_where(guild_id: str, extension: str,
+def _build_where(guild_id: str, extension: str | None,
                  channel_id: str | None, author_id: str | None,
                  after: int | None, before: int | None):
-    clause = "WHERE guild_id=? AND extension=?"
-    params: list = [guild_id, extension.lower().lstrip(".")]
+    clause = "WHERE guild_id=?"
+    params: list[str | int] = [guild_id]
+    if extension is not None:
+        clause += " AND extension=?"
+        params.append(normalize_extension(extension))
     if channel_id:
         clause += " AND channel_id=?"
         params.append(channel_id)
@@ -55,7 +62,7 @@ def _build_where(guild_id: str, extension: str,
 
 
 async def search_files(db: aiosqlite.Connection,
-                       guild_id: str, extension: str,
+                       guild_id: str, extension: str | None = None,
                        channel_id: str | None = None,
                        author_id: str | None = None,
                        after: int | None = None,
@@ -66,7 +73,7 @@ async def search_files(db: aiosqlite.Connection,
     async with db.execute(f"SELECT COUNT(*) FROM files {clause}", params) as cur:
         total = (await cur.fetchone())[0]
     async with db.execute(
-        f"SELECT filename, url, channel_id, author_id, timestamp FROM files {clause} "
+        f"SELECT filename, url, channel_id, message_id, author_id, timestamp FROM files {clause} "
         f"ORDER BY timestamp DESC LIMIT ? OFFSET ?",
         params + [limit, offset],
     ) as cur:
